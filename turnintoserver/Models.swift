@@ -9,8 +9,10 @@ enum AppDefaultsKey {
     static let hotKeysEnabled = "hotKeysEnabled"
     static let serverModeHotKey = "serverModeHotKey"
     static let batteryModeHotKey = "batteryModeHotKey"
+    static let sleepHotKey = "sleepHotKey"
     static let serverModeHotKeyDisabled = "serverModeHotKeyDisabled"
     static let batteryModeHotKeyDisabled = "batteryModeHotKeyDisabled"
+    static let sleepHotKeyDisabled = "sleepHotKeyDisabled"
     static let timedServerModeDurationOptions = "timedServerModeDurationOptions"
     static let timedServerModePreventDisplaySleep = "timedServerModePreventDisplaySleep"
     static let automaticRoutingEnabled = "automaticRoutingEnabled"
@@ -231,13 +233,6 @@ enum AppText {
         localized(chinese: "自动路由设置", english: "Automatic Routing Settings")
     }
 
-    static var automaticRouteSettingsHelp: String {
-        localized(
-            chinese: "选择两个需同时在线的 macOS 网络服务。内网路由会从第一个接入点发出。",
-            english: "Choose two macOS network services that must both be online. Internal routes use the first access point."
-        )
-    }
-
     static var automaticRouteAccessPointsTitle: String {
         localized(chinese: "接入点条件", english: "Access Point Conditions")
     }
@@ -262,26 +257,12 @@ enum AppText {
         localized(chinese: "例如 10.0.0.53", english: "e.g. 10.0.0.53")
     }
 
-    static var automaticRouteDetectionSignatureHelp: String {
-        localized(
-            chinese: "可填写该接口 ipconfig 摘要中稳定出现的 DNS、IP 或文本；留空时只判断链路在线。",
-            english: "Enter stable DNS, IP, or text found in the interface's ipconfig summary; leave blank to check link status only."
-        )
-    }
-
     static var automaticRouteLoadingServices: String {
         localized(chinese: "正在读取网络服务…", english: "Loading network services...")
     }
 
     static var automaticRouteInternalCIDRsTitle: String {
         localized(chinese: "内网 IP / CIDR", english: "Internal IP / CIDR")
-    }
-
-    static var automaticRouteSettingsSupportedPrefixes: String {
-        localized(
-            chinese: "支持 /8、/16、/24、/32，最多 256 条；首次安装显示少量示例。",
-            english: "Supports /8, /16, /24, and /32, up to 256 entries; first launch shows a few examples."
-        )
     }
 
     static var automaticRouteResetBuiltIns: String {
@@ -355,6 +336,10 @@ enum AppText {
 
     static var aboutApplication: String {
         localized(chinese: "关于应用", english: "About turnintoserver")
+    }
+
+    static var sleepNow: String {
+        localized(chinese: "睡眠", english: "Sleep")
     }
 
     static var settings: String {
@@ -476,6 +461,10 @@ enum AppText {
 
     static var batteryModeShortcutLabel: String {
         localized(chinese: "切换电池模式", english: "Toggle Battery Mode")
+    }
+
+    static var sleepShortcutLabel: String {
+        localized(chinese: "使 Mac 睡眠", english: "Put Mac to Sleep")
     }
 
     static var recordShortcut: String {
@@ -905,6 +894,28 @@ enum AppText {
 
     static var waitingForAuthorizationToStop: String {
         localized(chinese: "等待授权关闭", english: "Waiting for authorization to stop")
+    }
+
+    static var preparingSystemSleep: String {
+        localized(chinese: "正在准备系统睡眠", english: "Preparing system sleep")
+    }
+
+    static var systemSleepRequested: String {
+        localized(chinese: "已请求系统睡眠", english: "System sleep requested")
+    }
+
+    static func systemSleepRequestFailed(_ code: String) -> String {
+        localized(
+            chinese: "系统拒绝睡眠请求（\(code)）",
+            english: "The system rejected the sleep request (\(code))"
+        )
+    }
+
+    static var systemSleepConnectionUnavailable: String {
+        localized(
+            chinese: "无法连接 macOS 电源管理服务",
+            english: "Could not connect to the macOS power management service"
+        )
     }
 
     static var detectedServerModeEnabled: String {

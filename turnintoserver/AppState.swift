@@ -213,6 +213,8 @@ final class AppState: ObservableObject {
     private var isRefreshingTopMemoryApps = false
     private var topMemoryAppsRefreshTask: Task<Void, Never>?
     private var audioMuteReconciliationTask: Task<Void, Never>?
+    private var isSystemSleepTransitionActive = false
+    private var systemSleepFallbackTask: Task<Void, Never>?
 
     init(
         defaults: UserDefaults = .standard,
@@ -1085,6 +1087,64 @@ final class AppState: ObservableObject {
         }
     }
 
+    func sleepNow() async {
+        guard beginCommand(waitingStatus: AppText.preparingSystemSleep) else {
+            return
+        }
+
+        let previousRequest = serverModeRequested
+        isSystemSleepTransitionActive = true
+
+        if serverModeActive {
+            let stopResult = await powerManager.restoreSleepSettings()
+            applyStop(
+                stopResult,
+                clearRequest: false,
+                previousRequest: previousRequest,
+                successMessage: nil
+            )
+
+            guard case .success = stopResult else {
+                isSystemSleepTransitionActive = false
+                finishCommand()
+                return
+            }
+
+            audioMuteReconciliationTask?.cancel()
+            do {
+                try await audioMuteManager.reconcile(shouldMute: false)
+            } catch {
+                lastCommandStatus = AppText.audioMuteFailed(error.localizedDescription)
+            }
+        }
+
+        let sleepResult = powerManager.requestSystemSleep()
+        switch sleepResult {
+        case .success(let message):
+            lastCommandStatus = AppText.success(message)
+            finishCommand()
+            if isSystemSleepTransitionActive {
+                scheduleSystemSleepFallback()
+            } else if previousRequest && !serverModeActive {
+                await reconcileServerMode()
+            }
+        case .userCancelled:
+            isSystemSleepTransitionActive = false
+            finishCommand()
+            if previousRequest && !serverModeActive {
+                await reconcileServerMode()
+            }
+            lastCommandStatus = AppText.userCancelledAuthorization
+        case .failure(let message):
+            isSystemSleepTransitionActive = false
+            finishCommand()
+            if previousRequest && !serverModeActive {
+                await reconcileServerMode()
+            }
+            lastCommandStatus = AppText.failure(message)
+        }
+    }
+
     private func needsClosedLidStopConfirmation() async -> Bool {
         guard serverModeActive else {
             return false
@@ -1387,7 +1447,9 @@ final class AppState: ObservableObject {
         let oldSource = powerSource
         powerSource = newSource
 
-        guard (serverModeRequested || serverModeActive), !isCommandRunning else {
+        guard !isSystemSleepTransitionActive,
+              (serverModeRequested || serverModeActive),
+              !isCommandRunning else {
             return
         }
 
@@ -1456,6 +1518,10 @@ final class AppState: ObservableObject {
     }
 
     private func handleWake() async {
+        isSystemSleepTransitionActive = false
+        systemSleepFallbackTask?.cancel()
+        systemSleepFallbackTask = nil
+
         guard (serverModeRequested || serverModeActive), !isCommandRunning else {
             return
         }
@@ -1465,6 +1531,22 @@ final class AppState: ObservableObject {
         updateTimedDisplayAwakeAssertion()
         await dimClosedLidBuiltInDisplayIfNeeded(force: true)
         await evaluateLowBatteryNotification()
+    }
+
+    private func scheduleSystemSleepFallback() {
+        systemSleepFallbackTask?.cancel()
+        systemSleepFallbackTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 15_000_000_000)
+            guard let self, !Task.isCancelled, self.isSystemSleepTransitionActive else {
+                return
+            }
+
+            self.isSystemSleepTransitionActive = false
+            self.systemSleepFallbackTask = nil
+            if self.serverModeRequested && !self.serverModeActive && !self.isCommandRunning {
+                await self.reconcileServerMode()
+            }
+        }
     }
 
     private func startBatteryNotificationTimer() {

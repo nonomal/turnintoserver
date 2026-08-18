@@ -91,9 +91,9 @@ final class ShortcutSettingsWindowController: NSWindowController {
         window.title = AppText.shortcutHintsTitle
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
-        window.contentMinSize = NSSize(width: 460, height: 160)
-        window.contentMaxSize = NSSize(width: 460, height: 160)
-        window.setContentSize(NSSize(width: 460, height: 160))
+        window.contentMinSize = NSSize(width: 460, height: 195)
+        window.contentMaxSize = NSSize(width: 460, height: 195)
+        window.setContentSize(NSSize(width: 460, height: 195))
         window.center()
 
         super.init(window: window)
@@ -386,17 +386,6 @@ struct AutomaticRouteSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(AppText.automaticRouteSettingsHelp)
-                    .font(.system(size: 13))
-                Text(AppText.automaticRouteDetectionSignatureHelp)
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-            }
-
-            Text(AppText.automaticRouteAccessPointsTitle)
-                .font(.system(size: 13, weight: .semibold))
-
             HStack(alignment: .top, spacing: 20) {
                 accessPointEditor(
                     title: AppText.automaticRouteRouteAccessPointTitle,
@@ -418,13 +407,8 @@ struct AutomaticRouteSettingsView: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(AppText.automaticRouteInternalCIDRsTitle)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(AppText.automaticRouteSettingsSupportedPrefixes)
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-            }
+            Text(AppText.automaticRouteInternalCIDRsTitle)
+                .font(.system(size: 13, weight: .semibold))
 
             CIDRTextEditor(text: $cidrText)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -827,6 +811,14 @@ struct ShortcutSettingsView: View {
                 shortcutModel.record(.batteryMode)
             }
 
+            ShortcutRow(
+                title: AppText.sleepShortcutLabel,
+                shortcut: shortcutModel.sleepShortcut,
+                isRecording: shortcutModel.recordingTarget == .sleep
+            ) {
+                shortcutModel.record(.sleep)
+            }
+
             HStack(spacing: 10) {
                 Button(AppText.resetShortcuts) {
                     shortcutModel.resetShortcuts()
@@ -836,7 +828,7 @@ struct ShortcutSettingsView: View {
             }
         }
         .padding(16)
-        .frame(width: 460, height: 160, alignment: .topLeading)
+        .frame(width: 460, height: 195, alignment: .topLeading)
     }
 }
 
@@ -1177,10 +1169,12 @@ private final class ShortcutSettingsViewModel: ObservableObject {
     enum Target {
         case serverMode
         case batteryMode
+        case sleep
     }
 
     @Published var serverModeShortcut: HotKeyShortcut?
     @Published var batteryModeShortcut: HotKeyShortcut?
+    @Published var sleepShortcut: HotKeyShortcut?
     @Published var recordingTarget: Target?
     @Published var statusText = AppText.shortcutRecordHint
 
@@ -1198,6 +1192,11 @@ private final class ShortcutSettingsViewModel: ObservableObject {
             defaultsKey: AppDefaultsKey.batteryModeHotKey,
             disabledDefaultsKey: AppDefaultsKey.batteryModeHotKeyDisabled,
             default: .defaultBatteryMode
+        )
+        sleepShortcut = HotKeyShortcut.loadOptional(
+            defaultsKey: AppDefaultsKey.sleepHotKey,
+            disabledDefaultsKey: AppDefaultsKey.sleepHotKeyDisabled,
+            default: .defaultSleep
         )
     }
 
@@ -1243,6 +1242,7 @@ private final class ShortcutSettingsViewModel: ObservableObject {
         HotKeyShortcut.reset()
         serverModeShortcut = .defaultServerMode
         batteryModeShortcut = .defaultBatteryMode
+        sleepShortcut = .defaultSleep
         statusText = AppText.shortcutRecordHint
     }
 
@@ -1262,6 +1262,12 @@ private final class ShortcutSettingsViewModel: ObservableObject {
                 disabledDefaultsKey: AppDefaultsKey.batteryModeHotKeyDisabled
             )
             batteryModeShortcut = nil
+        case .sleep:
+            HotKeyShortcut.clear(
+                defaultsKey: AppDefaultsKey.sleepHotKey,
+                disabledDefaultsKey: AppDefaultsKey.sleepHotKeyDisabled
+            )
+            sleepShortcut = nil
         }
 
         statusText = AppText.shortcutRecordHint
@@ -1300,6 +1306,12 @@ private final class ShortcutSettingsViewModel: ObservableObject {
                 disabledDefaultsKey: AppDefaultsKey.batteryModeHotKeyDisabled
             )
             batteryModeShortcut = shortcut
+        case .sleep:
+            shortcut.save(
+                defaultsKey: AppDefaultsKey.sleepHotKey,
+                disabledDefaultsKey: AppDefaultsKey.sleepHotKeyDisabled
+            )
+            sleepShortcut = shortcut
         case .none:
             break
         }

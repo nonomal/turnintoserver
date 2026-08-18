@@ -587,12 +587,20 @@ final class MCPControlServer {
                 impact: "设置电池模式快捷键；设置为 null 会清空该快捷键。"
             ),
             optionJSON(
+                name: "sleep_hot_key",
+                title: AppText.sleepShortcutLabel,
+                valueType: "hot_key_or_null",
+                currentValue: hotKeyJSON(sleepShortcut()),
+                canSet: true,
+                impact: "设置系统睡眠快捷键；设置为 null 会清空该快捷键。"
+            ),
+            optionJSON(
                 name: "reset_hot_keys_to_defaults",
                 title: AppText.resetShortcuts,
                 valueType: "boolean",
                 currentValue: false,
                 canSet: true,
-                impact: "恢复两个快捷键到默认组合。"
+                impact: "恢复三个快捷键到默认组合。"
             ),
             optionJSON(
                 name: "launch_at_login",
@@ -876,6 +884,16 @@ final class MCPControlServer {
                 requestedValueForResponse: hotKeyJSON(value),
                 impact: "将更新或清空电池模式快捷键。"
             )
+        case "sleep_hot_key":
+            let value = try hotKeyValue(rawValue, option: option)
+            return PreparedSettingChange(
+                option: option,
+                title: AppText.sleepShortcutLabel,
+                value: .hotKey(value),
+                currentValueForResponse: hotKeyJSON(sleepShortcut()),
+                requestedValueForResponse: hotKeyJSON(value),
+                impact: "将更新或清空系统睡眠快捷键。"
+            )
         case "reset_hot_keys_to_defaults":
             let value = try boolValue(rawValue, option: option)
             guard value else {
@@ -887,7 +905,7 @@ final class MCPControlServer {
                 value: .resetHotKeys,
                 currentValueForResponse: hotKeysJSON(appState),
                 requestedValueForResponse: true,
-                impact: "将恢复两个全局快捷键到默认组合。"
+                impact: "将恢复三个全局快捷键到默认组合。"
             )
         case "launch_at_login":
             guard appState.launchAtLoginSupported else {
@@ -1013,6 +1031,12 @@ final class MCPControlServer {
                 defaultsKey: AppDefaultsKey.batteryModeHotKey,
                 disabledDefaultsKey: AppDefaultsKey.batteryModeHotKeyDisabled
             )
+        case ("sleep_hot_key", .hotKey(let value)):
+            saveHotKey(
+                value,
+                defaultsKey: AppDefaultsKey.sleepHotKey,
+                disabledDefaultsKey: AppDefaultsKey.sleepHotKeyDisabled
+            )
         case ("reset_hot_keys_to_defaults", .resetHotKeys):
             HotKeyShortcut.reset()
         case ("launch_at_login", .bool(let value)):
@@ -1084,7 +1108,8 @@ final class MCPControlServer {
         [
             "enabled": appState.hotKeysEnabled,
             "server_mode": hotKeyJSON(serverModeShortcut()),
-            "battery_mode": hotKeyJSON(batteryModeShortcut())
+            "battery_mode": hotKeyJSON(batteryModeShortcut()),
+            "sleep": hotKeyJSON(sleepShortcut())
         ]
     }
 
@@ -1293,6 +1318,14 @@ final class MCPControlServer {
         )
     }
 
+    private func sleepShortcut() -> HotKeyShortcut? {
+        HotKeyShortcut.loadOptional(
+            defaultsKey: AppDefaultsKey.sleepHotKey,
+            disabledDefaultsKey: AppDefaultsKey.sleepHotKeyDisabled,
+            default: .defaultSleep
+        )
+    }
+
     private func boolValue(_ value: Any, option: String) throws -> Bool {
         guard let bool = value as? Bool else {
             throw ControlFailure(code: "invalid_value", message: "\(option) must be a boolean.")
@@ -1471,7 +1504,8 @@ final class MCPControlServer {
             defaults.string(forKey: AppDefaultsKey.iMessageRecipientAddress) ?? "",
             defaults.string(forKey: AppDefaultsKey.barkPushEndpoint) ?? "",
             hotKeySignature(serverModeShortcut()),
-            hotKeySignature(batteryModeShortcut())
+            hotKeySignature(batteryModeShortcut()),
+            hotKeySignature(sleepShortcut())
         ]
         return values.joined(separator: "|")
     }

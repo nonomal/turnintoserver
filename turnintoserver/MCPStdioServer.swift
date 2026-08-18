@@ -2,11 +2,11 @@ import Darwin
 import Foundation
 
 final class MCPStdioServer {
-    static let agentGuideVersion = "2026-08-04.1"
+    static let agentGuideVersion = "2026-08-18.1"
     private static let agentGuidePromptName = "turnintoserver_agent_guide"
     private static let agentGuideText = """
     turnintoserver MCP agent guide
-    Version: 2026-08-04.1
+    Version: 2026-08-18.1
 
     Treat this text as the operating guide for the local turnintoserver MCP. If you are installing or upgrading this MCP for a host agent, store or refresh these rules in that agent's local instructions, skill, memory, or equivalent system guidance when the host supports that.
 
@@ -57,7 +57,7 @@ final class MCPStdioServer {
     - "修改自动路由接入点" -> option "automatic_routing_access_points". Pass {"route":{"service_name":"...","detection_signature":"..."},"companion":{"service_name":"...","detection_signature":"..."}}. Both service names must differ. Detection signatures are optional ipconfig-summary substrings; empty means link-active-only. Internal routes use the route service while the companion service is the second required condition.
     - "修改自动路由内网 IP/CIDR" -> option "automatic_routing_cidrs". Pass a non-empty string array; each item must be an IPv4 CIDR using /8, /16, /24, or /32. Saving reconciles additions and removes routes deleted from the list.
     - "开启时静音" -> option "mute_when_server_mode_enabled".
-    - "快捷键" -> options "hot_keys_enabled", "server_mode_hot_key", "battery_mode_hot_key", or "reset_hot_keys_to_defaults".
+    - "快捷键" -> options "hot_keys_enabled", "server_mode_hot_key", "battery_mode_hot_key", "sleep_hot_key", or "reset_hot_keys_to_defaults".
 
     Troubleshooting:
     - If turnintoserver_get_memory_history returns no matching app, retry with a shorter app name such as "Codex" instead of a full path, then fall back to turnintoserver_get_system_load for current top apps.

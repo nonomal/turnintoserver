@@ -29,6 +29,11 @@ struct HotKeyShortcut: Codable, Equatable {
         modifierFlags: defaultModifierFlags,
         keyDisplay: "P"
     )
+    static let defaultSleep = HotKeyShortcut(
+        keyCode: UInt32(kVK_ANSI_S),
+        modifierFlags: defaultModifierFlags,
+        keyDisplay: "S"
+    )
 
     var displayString: String {
         var parts: [String] = []
@@ -186,8 +191,10 @@ struct HotKeyShortcut: Codable, Equatable {
     static func reset(defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: AppDefaultsKey.serverModeHotKey)
         defaults.removeObject(forKey: AppDefaultsKey.batteryModeHotKey)
+        defaults.removeObject(forKey: AppDefaultsKey.sleepHotKey)
         defaults.removeObject(forKey: AppDefaultsKey.serverModeHotKeyDisabled)
         defaults.removeObject(forKey: AppDefaultsKey.batteryModeHotKeyDisabled)
+        defaults.removeObject(forKey: AppDefaultsKey.sleepHotKeyDisabled)
         NotificationCenter.default.post(name: .turnIntoServerHotKeysDidChange, object: nil)
     }
 
@@ -241,15 +248,18 @@ final class HotKeyManager {
     private enum HotKey: UInt32 {
         case toggleServerMode = 1
         case toggleBatteryServerMode = 2
+        case sleep = 3
     }
 
     private static let signature = fourCharCode("ttsv")
 
     private let onToggleServerMode: @MainActor () async -> Void
     private let onToggleBatteryServerMode: @MainActor () async -> Void
+    private let onSleep: @MainActor () async -> Void
     private var eventHandler: EventHandlerRef?
     private var toggleServerModeHotKey: EventHotKeyRef?
     private var toggleBatteryServerModeHotKey: EventHotKeyRef?
+    private var sleepHotKey: EventHotKeyRef?
     private var hotKeysDidChangeObserver: NSObjectProtocol?
     private var recordingDidStartObserver: NSObjectProtocol?
     private var recordingDidEndObserver: NSObjectProtocol?
@@ -260,10 +270,12 @@ final class HotKeyManager {
 
     init(
         onToggleServerMode: @escaping @MainActor () async -> Void,
-        onToggleBatteryServerMode: @escaping @MainActor () async -> Void
+        onToggleBatteryServerMode: @escaping @MainActor () async -> Void,
+        onSleep: @escaping @MainActor () async -> Void
     ) {
         self.onToggleServerMode = onToggleServerMode
         self.onToggleBatteryServerMode = onToggleBatteryServerMode
+        self.onSleep = onSleep
     }
 
     deinit {
@@ -408,6 +420,11 @@ final class HotKeyManager {
             disabledDefaultsKey: AppDefaultsKey.batteryModeHotKeyDisabled,
             default: .defaultBatteryMode
         )
+        let sleepShortcut = HotKeyShortcut.loadOptional(
+            defaultsKey: AppDefaultsKey.sleepHotKey,
+            disabledDefaultsKey: AppDefaultsKey.sleepHotKeyDisabled,
+            default: .defaultSleep
+        )
 
         if let serverModeShortcut {
             registerHotKey(.toggleServerMode, shortcut: serverModeShortcut, storage: &toggleServerModeHotKey)
@@ -415,6 +432,10 @@ final class HotKeyManager {
 
         if let batteryModeShortcut {
             registerHotKey(.toggleBatteryServerMode, shortcut: batteryModeShortcut, storage: &toggleBatteryServerModeHotKey)
+        }
+
+        if let sleepShortcut {
+            registerHotKey(.sleep, shortcut: sleepShortcut, storage: &sleepHotKey)
         }
     }
 
@@ -427,6 +448,11 @@ final class HotKeyManager {
         if let toggleBatteryServerModeHotKey {
             UnregisterEventHotKey(toggleBatteryServerModeHotKey)
             self.toggleBatteryServerModeHotKey = nil
+        }
+
+        if let sleepHotKey {
+            UnregisterEventHotKey(sleepHotKey)
+            self.sleepHotKey = nil
         }
     }
 
@@ -465,6 +491,8 @@ final class HotKeyManager {
                 await onToggleServerMode()
             case .toggleBatteryServerMode:
                 await onToggleBatteryServerMode()
+            case .sleep:
+                await onSleep()
             }
         }
 

@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mcpControlServer: MCPControlServer?
     private var serverModeKeyEquivalentItem: NSMenuItem?
     private var batteryModeKeyEquivalentItem: NSMenuItem?
+    private var sleepKeyEquivalentItem: NSMenuItem?
     private var hotKeysDidChangeObserver: NSObjectProtocol?
     private var updateInstallTerminateObserver: NSObjectProtocol?
     private var isPreparingToTerminate = false
@@ -46,6 +47,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             onToggleBatteryServerMode: {
                 state.toggleBatteryServerMode()
+            },
+            onSleep: {
+                await state.sleepNow()
             }
         )
         hotKeyManager?.start()
@@ -131,6 +135,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(batteryModeKeyEquivalentItem)
         self.batteryModeKeyEquivalentItem = batteryModeKeyEquivalentItem
 
+        let sleepKeyEquivalentItem = NSMenuItem(
+            title: AppText.sleepNow,
+            action: #selector(performSleepKeyEquivalent(_:)),
+            keyEquivalent: ""
+        )
+        sleepKeyEquivalentItem.target = self
+        appMenu.addItem(sleepKeyEquivalentItem)
+        self.sleepKeyEquivalentItem = sleepKeyEquivalentItem
+
         appMenu.addItem(.separator())
         appMenu.addItem(
             NSMenuItem(
@@ -209,6 +222,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             batteryModeKeyEquivalentItem,
             shortcut: hotKeysEnabled ? batteryModeShortcut : nil
         )
+        configureKeyEquivalentMenuItem(
+            sleepKeyEquivalentItem,
+            shortcut: hotKeysEnabled ? sleepShortcut : nil
+        )
     }
 
     private var serverModeShortcut: HotKeyShortcut? {
@@ -224,6 +241,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defaultsKey: AppDefaultsKey.batteryModeHotKey,
             disabledDefaultsKey: AppDefaultsKey.batteryModeHotKeyDisabled,
             default: .defaultBatteryMode
+        )
+    }
+
+    private var sleepShortcut: HotKeyShortcut? {
+        HotKeyShortcut.loadOptional(
+            defaultsKey: AppDefaultsKey.sleepHotKey,
+            disabledDefaultsKey: AppDefaultsKey.sleepHotKeyDisabled,
+            default: .defaultSleep
         )
     }
 
@@ -261,6 +286,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItemController?.cancelMenuTrackingForKeyEquivalent()
         appState.toggleBatteryServerMode()
     }
+
+    @objc private func performSleepKeyEquivalent(_ sender: Any?) {
+        guard let appState else {
+            return
+        }
+
+        statusItemController?.cancelMenuTrackingForKeyEquivalent()
+        Task { @MainActor in
+            await appState.sleepNow()
+        }
+    }
 }
 
 @MainActor
@@ -268,6 +304,7 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
     private enum MenuShortcutAction {
         case serverMode
         case batteryMode
+        case sleep
     }
 
     private let appState: AppState
@@ -303,6 +340,7 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
     private weak var launchAtLoginRowView: MenuToggleRowView?
     private weak var automaticRoutingRowView: MenuToggleRowView?
     private weak var muteWhenEnabledRowView: MenuToggleRowView?
+    private weak var sleepMenuItem: NSMenuItem?
     private weak var quitMenuItem: NSMenuItem?
 
     init(appState: AppState) {
@@ -539,6 +577,14 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
             return .batteryMode
         }
 
+        if let shortcut = HotKeyShortcut.loadOptional(
+            defaultsKey: AppDefaultsKey.sleepHotKey,
+            disabledDefaultsKey: AppDefaultsKey.sleepHotKeyDisabled,
+            default: .defaultSleep
+        ), shortcut.matches(event: event) {
+            return .sleep
+        }
+
         return nil
     }
 
@@ -566,6 +612,11 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
         case .batteryMode:
             appState.toggleBatteryServerMode()
             updateStatusButton()
+        case .sleep:
+            Task { @MainActor in
+                await appState.sleepNow()
+                updateStatusButton()
+            }
         }
     }
 
@@ -589,6 +640,7 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
         launchAtLoginRowView = nil
         automaticRoutingRowView = nil
         muteWhenEnabledRowView = nil
+        sleepMenuItem = nil
         quitMenuItem = nil
 
         addHiddenShortcutMenuItems()
@@ -732,6 +784,13 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(muteWhenEnabledItem)
 
         menu.addItem(.separator())
+
+        let sleepItem = NSMenuItem(title: AppText.sleepNow, action: #selector(sleepNow(_:)), keyEquivalent: "")
+        sleepItem.target = self
+        sleepItem.isEnabled = !appState.isCommandRunning
+        configureShortcutMenuItem(sleepItem, shortcut: appState.hotKeysEnabled ? sleepShortcut : nil)
+        sleepMenuItem = sleepItem
+        menu.addItem(sleepItem)
 
         let aboutItem = NSMenuItem(title: AppText.aboutApplication, action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
@@ -878,6 +937,22 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
             action: #selector(performBatteryModeMenuKeyEquivalent(_:))
         )
         menu.addItem(batteryModeItem)
+
+    }
+
+    private func configureShortcutMenuItem(_ item: NSMenuItem?, shortcut: HotKeyShortcut?) {
+        guard let item else {
+            return
+        }
+
+        guard let shortcut, let keyEquivalent = shortcut.keyEquivalent else {
+            item.keyEquivalent = ""
+            item.keyEquivalentModifierMask = []
+            return
+        }
+
+        item.keyEquivalent = keyEquivalent
+        item.keyEquivalentModifierMask = shortcut.keyEquivalentModifierMask
     }
 
     private func hiddenShortcutMenuItem(shortcut: HotKeyShortcut?, action: Selector) -> NSMenuItem {
@@ -1047,7 +1122,8 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
               let shortcutsRowView,
               let launchAtLoginRowView,
               let automaticRoutingRowView,
-              let muteWhenEnabledRowView else {
+              let muteWhenEnabledRowView,
+              let sleepMenuItem else {
             rebuildMenu()
             return
         }
@@ -1106,6 +1182,12 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
             title: AppText.muteWhenServerModeEnabled,
             isOn: appState.muteWhenServerModeEnabled,
             isToggleEnabled: !appState.isAudioMuteChanging
+        )
+        sleepMenuItem.title = AppText.sleepNow
+        sleepMenuItem.isEnabled = !appState.isCommandRunning
+        configureShortcutMenuItem(
+            sleepMenuItem,
+            shortcut: appState.hotKeysEnabled ? sleepShortcut : nil
         )
         quitMenuItem?.isEnabled = !appState.isCommandRunning
 
@@ -1234,6 +1316,14 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
         )
     }
 
+    private var sleepShortcut: HotKeyShortcut? {
+        HotKeyShortcut.loadOptional(
+            defaultsKey: AppDefaultsKey.sleepHotKey,
+            disabledDefaultsKey: AppDefaultsKey.sleepHotKeyDisabled,
+            default: .defaultSleep
+        )
+    }
+
     @objc private func toggleServerMode(_ sender: Any?) {
         Task { @MainActor in
             await appState.toggleServerMode()
@@ -1246,6 +1336,14 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
         appState.toggleBatteryServerMode()
         updateStatusButton()
         refreshMenuSoon()
+    }
+
+    @objc private func sleepNow(_ sender: Any?) {
+        Task { @MainActor in
+            await appState.sleepNow()
+            updateStatusButton()
+            refreshMenuSoon()
+        }
     }
 
     @objc private func toggleLowBatteryNotifications(_ sender: Any?) {
@@ -3272,6 +3370,7 @@ private final class MenuToggleRowView: HighlightedMenuRowView {
     private let titleLabel = NSTextField(labelWithString: "")
     private let shortcutLabel = NSTextField(labelWithString: "")
     private let toggleOverlayButton = MenuRowButton()
+    private var settingsButton: NSButton?
     private let onHoverBegan: ((NSView) -> Void)?
     private let onHoverEnded: (() -> Void)?
 
@@ -3336,6 +3435,7 @@ private final class MenuToggleRowView: HighlightedMenuRowView {
         } else {
             settingsButton = nil
         }
+        self.settingsButton = settingsButton
 
         addSubview(checkmarkLabel)
         addSubview(titleLabel)
@@ -3412,6 +3512,17 @@ private final class MenuToggleRowView: HighlightedMenuRowView {
         subviews.compactMap { $0 as? NSTextField }
             .filter { $0 !== checkmarkLabel && $0 !== titleLabel }
             .forEach { $0.textColor = isHighlighted ? color : .tertiaryLabelColor }
+
+        if let settingsButton {
+            let buttonColor = isHighlighted ? color : NSColor.controlTextColor
+            settingsButton.attributedTitle = NSAttributedString(
+                string: settingsButton.title,
+                attributes: [
+                    .font: settingsButton.font ?? NSFont.systemFont(ofSize: 11),
+                    .foregroundColor: buttonColor
+                ]
+            )
+        }
     }
 
     override fileprivate func hoverStateDidChange(isHovered: Bool) {

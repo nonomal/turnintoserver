@@ -1,4 +1,5 @@
 import Foundation
+import IOKit.pwr_mgt
 
 @MainActor
 final class PowerManager {
@@ -48,6 +49,24 @@ final class PowerManager {
         }
 
         return .success(AppText.restoredClosedLidSleep)
+    }
+
+    func requestSystemSleep() -> PowerCommandResult {
+        let connection = IOPMFindPowerManagement(mach_port_t(MACH_PORT_NULL))
+        guard connection != IO_OBJECT_NULL else {
+            return .failure(AppText.systemSleepConnectionUnavailable)
+        }
+        defer {
+            IOServiceClose(connection)
+        }
+
+        let result = IOPMSleepSystem(connection)
+        guard result == kIOReturnSuccess else {
+            let code = String(format: "0x%08X", UInt32(bitPattern: result))
+            return .failure(AppText.systemSleepRequestFailed(code))
+        }
+
+        return .success(AppText.systemSleepRequested)
     }
 
     func dimBuiltInDisplayForClosedLid() -> PowerCommandResult {
