@@ -81,7 +81,7 @@ If battery mode is off, unplugging power pauses Server Mode. Plugging power back
 
 Low battery alerts need an iMessage or Bark channel from the Set Up button beside Low Battery Alerts, and the configured channels must test successfully before the switch can be enabled. Configure one channel to send through that channel, or configure both to send through both. The first iMessage send may ask macOS for permission to let `turnintoserver` control Messages; allow it. Bark accepts a push URL such as `https://api.day.app/your-key`.
 
-Check for Updates now downloads the new DMG directly, shows download progress, and then offers to restart the app to finish installing.
+The app checks for updates every 24 hours. When a new version is found, it downloads and validates the DMG automatically. Once ready, the menu offers “Update is ready. Restart now?”, and the About window can also restart the app to finish the replacement install.
 
 ## About The Display
 

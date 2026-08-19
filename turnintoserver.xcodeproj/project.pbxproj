@@ -22,6 +22,7 @@
 		A1000000000000000000000D /* MCPControlServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MCPControlServer.swift */; };
 		A1000000000000000000000E /* MCPStdioServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* MCPStdioServer.swift */; };
 		A1000000000000000000000F /* AutomationManagers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* AutomationManagers.swift */; };
+		A10000000000000000000010 /* update_installer.sh in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* update_installer.sh */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,7 @@
 		A20000000000000000000016 /* MCPControlServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPControlServer.swift; sourceTree = "<group>"; };
 		A20000000000000000000017 /* MCPStdioServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPStdioServer.swift; sourceTree = "<group>"; };
 		A20000000000000000000018 /* AutomationManagers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationManagers.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* update_installer.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = update_installer.sh; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +81,7 @@
 				A20000000000000000000016 /* MCPControlServer.swift */,
 				A20000000000000000000017 /* MCPStdioServer.swift */,
 				A20000000000000000000018 /* AutomationManagers.swift */,
+				A20000000000000000000019 /* update_installer.sh */,
 				A20000000000000000000005 /* ShellRunner.swift */,
 				A20000000000000000000006 /* Models.swift */,
 				A20000000000000000000007 /* Info.plist */,
@@ -155,6 +158,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000007 /* Assets.xcassets in Resources */,
+				A10000000000000000000010 /* update_installer.sh in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

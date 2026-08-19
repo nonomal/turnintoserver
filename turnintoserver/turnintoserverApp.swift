@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CoreText
+import Darwin
 
 @main
 enum TurnIntoServerMain {
@@ -26,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyManager: HotKeyManager?
     private var statusItemController: StatusItemController?
     private var mcpControlServer: MCPControlServer?
+    private var updateModel: PreferencesUpdateViewModel?
     private var serverModeKeyEquivalentItem: NSMenuItem?
     private var batteryModeKeyEquivalentItem: NSMenuItem?
     private var sleepKeyEquivalentItem: NSMenuItem?
@@ -53,7 +55,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         )
         hotKeyManager?.start()
-        statusItemController = StatusItemController(appState: state)
+        let updateModel = PreferencesUpdateViewModel()
+        self.updateModel = updateModel
+        statusItemController = StatusItemController(appState: state, updateModel: updateModel)
         let controlServer = MCPControlServer(appState: state)
         mcpControlServer = controlServer
         controlServer.start()
@@ -61,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observeShortcutMenuItemChanges()
         observeUpdateInstallTerminationRequests()
         state.start()
+        updateModel.startDailyAutomaticChecks()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -78,6 +83,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let appState else {
+            return .terminateNow
+        }
+
+        // 更新安装不需要恢复 Server Mode；直接终止可避开 terminateLater
+        // 在部分菜单栏/关于窗口状态下不回调、让安装器空等 60 秒的问题。
+        if isTerminatingForUpdateInstall {
             return .terminateNow
         }
 
@@ -209,6 +220,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func terminateForUpdateInstall() {
         isTerminatingForUpdateInstall = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            // AppKit 理论上会立即退出；这里只防御系统仍未完成终止的异常情况。
+            _exit(EXIT_SUCCESS)
+        }
         NSApplication.shared.terminate(nil)
     }
 
@@ -308,6 +323,7 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private let appState: AppState
+    private let updateModel: PreferencesUpdateViewModel
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
     private var aboutWindowController: AboutWindowController?
@@ -343,8 +359,9 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
     private weak var sleepMenuItem: NSMenuItem?
     private weak var quitMenuItem: NSMenuItem?
 
-    init(appState: AppState) {
+    init(appState: AppState, updateModel: PreferencesUpdateViewModel) {
         self.appState = appState
+        self.updateModel = updateModel
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
         memorySectionExpanded = appState.shouldShowMemoryUsageRows
@@ -446,6 +463,14 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: .turnIntoServerHotKeysDidChange)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.refreshMenuIfOpen()
+            }
+            .store(in: &cancellables)
+
+        updateModel.$canRestartToInstall
+            .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.refreshMenuIfOpen()
@@ -791,6 +816,16 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
         configureShortcutMenuItem(sleepItem, shortcut: appState.hotKeysEnabled ? sleepShortcut : nil)
         sleepMenuItem = sleepItem
         menu.addItem(sleepItem)
+
+        if updateModel.canRestartToInstall {
+            let updateItem = NSMenuItem(
+                title: AppText.updateReadyRestartQuestion,
+                action: #selector(restartReadyUpdate(_:)),
+                keyEquivalent: ""
+            )
+            updateItem.target = self
+            menu.addItem(updateItem)
+        }
 
         let aboutItem = NSMenuItem(title: AppText.aboutApplication, action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
@@ -1346,6 +1381,11 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
         }
     }
 
+    @objc private func restartReadyUpdate(_ sender: Any?) {
+        menu.cancelTracking()
+        updateModel.restartAndInstall()
+    }
+
     @objc private func toggleLowBatteryNotifications(_ sender: Any?) {
         appState.toggleLowBatteryNotifications()
         refreshMenuSoon()
@@ -1482,7 +1522,7 @@ private final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func showAbout() {
         if aboutWindowController == nil {
-            aboutWindowController = AboutWindowController(appState: appState)
+            aboutWindowController = AboutWindowController(appState: appState, updateModel: updateModel)
         }
 
         aboutWindowController?.show()

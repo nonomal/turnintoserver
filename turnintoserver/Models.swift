@@ -27,6 +27,9 @@ enum AppDefaultsKey {
     static let muteWhenServerModeEnabled = "muteWhenServerModeEnabled"
     static let audioMuteRestorePending = "audioMuteRestorePending"
     static let audioMuteRestoreWasMuted = "audioMuteRestoreWasMuted"
+    static let lastAutomaticUpdateCheckDate = "lastAutomaticUpdateCheckDate"
+    static let preparedUpdateDMGPath = "preparedUpdateDMGPath"
+    static let preparedUpdateVersion = "preparedUpdateVersion"
 }
 
 enum AppText {
@@ -681,6 +684,10 @@ enum AppText {
         localized(chinese: "更新已准备好，重新启动应用后完成安装。", english: "Update is ready. Restart the app to finish installing.")
     }
 
+    static var updateReadyRestartQuestion: String {
+        localized(chinese: "更新已经就绪，是否立即重启？", english: "Update is ready. Restart now?")
+    }
+
     static var restartToInstallUpdate: String {
         localized(chinese: "重新启动应用", english: "Restart App")
     }
@@ -711,6 +718,18 @@ enum AppText {
 
     static var updateServerUnavailable: String {
         localized(chinese: "更新服务器暂时不可用", english: "The update server is unavailable")
+    }
+
+    static var updateDMGMissingApp: String {
+        localized(chinese: "DMG 中没有应用程序。", english: "The DMG does not contain an app.")
+    }
+
+    static var updateDMGIdentityInvalid: String {
+        localized(chinese: "DMG 中的应用标识或版本不正确。", english: "The app identity or version in the DMG is invalid.")
+    }
+
+    static var updateDMGValidationFailed: String {
+        localized(chinese: "DMG 完整性或签名验证失败。", english: "DMG integrity or signature validation failed.")
     }
 
     static var unknownVersion: String {

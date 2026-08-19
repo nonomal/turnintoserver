@@ -81,7 +81,7 @@ https://github.com/QianYushi/turnintoserver/releases/latest
 
 低电量提醒需要先在菜单中点击“推送低电量通知”右侧的“设置”，配置 iMessage 或 Bark，并测试成功后才能开启。只填写一个通道就只推送一个；两个都填写时会同时推送。iMessage 首次发送时，macOS 会询问是否允许 `turnintoserver` 控制 Messages，请选择允许。Bark 支持填写类似 `https://api.day.app/你的key` 的推送地址。
 
-检查更新会直接下载新版 DMG，显示下载进度，准备好后可以点击“重新启动应用”完成替换安装。
+App 每 24 小时自动检查一次更新；发现新版本后会自动下载并校验 DMG。更新准备好时，菜单底部会出现“更新已经就绪，是否立即重启？”，也可以在“关于应用”中点击“重新启动应用”完成替换安装。
 
 ## 关于屏幕
 
